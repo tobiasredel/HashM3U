@@ -81,7 +81,3 @@ You can modify the script to suit your needs, for example:
 - Adding more custom M3U sources.
 - Adjusting the update frequency for stream mappings.
 - Customizing the proxy behavior or adding more endpoints.
-
-### 10. License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
