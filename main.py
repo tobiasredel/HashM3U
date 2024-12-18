@@ -112,7 +112,11 @@ def schedule_mapping_update():
 # FastAPI-Endpunkt (zum Testen)
 @app.get("/")
 def read_root():
-    return {"message": "FastAPI Server is running!"}
+    info = {
+        "mappings": len(MAPPINGS),
+        "next_refresh": f'{scheduler.get_jobs()[0].next_run_time:%Y-%m-%d %H:%M:%S}'
+    }
+    return JSONResponse(content=info)
 
 
 if __name__ == "__main__":
