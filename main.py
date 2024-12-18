@@ -4,7 +4,7 @@ import requests
 import hashlib
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse, JSONResponse
 import io
 from typing import Dict
 import re
@@ -25,7 +25,7 @@ M3U_UPDATEHOURS = os.getenv("M3U_UPDATEHOURS", 2)
 
 
 def generate_hash(name: str) -> str:
-    return hashlib.sha256(name.encode()).hexdigest()[:8]
+    return hashlib.sha256(name.encode()).hexdigest()[:16]
 
 
 def download_m3u(url: str) -> str:
@@ -52,15 +52,15 @@ def update_mapping(m3u_url: str):
 
             if tvg_name and stream_url:
                 unique_hash = generate_hash(tvg_name)
-                new_mappings[tvg_name] = {
+                new_mappings[unique_hash] = {
                     "url": stream_url,
-                    "hash": unique_hash,
+                    "tvg_name": tvg_name,
                     "metadata": metadata,
                 }
-                logger.info(f"Added mapping: {tvg_name} -> {unique_hash}")
+                logger.debug(f"Added mapping: {tvg_name} -> {unique_hash}")
 
     MAPPINGS = new_mappings
-    logger.info("Mappings updated successfully.")
+    logger.info(f"{len(MAPPINGS)} mappings updated successfully.")
 
 
 def get_tvg_name(line: str) -> str:
@@ -72,19 +72,19 @@ def get_tvg_name(line: str) -> str:
 def generate_proxified_m3u() -> str:
     logger.info("Generating proxified M3U...")
     proxified_content = "#EXTM3U\n"
-    for tvg_name, data in MAPPINGS.items():
+    for hash, data in MAPPINGS.items():
         metadata = data["metadata"]
-        
+
         # Stelle sicher, dass die Anführungszeichen korrekt bleiben und nicht escaped werden
         proxified_content += f'{metadata}\n'
-        proxified_content += f'http://{M3U_HOSTPORT}/proxy/{data["hash"]}\n'
+        proxified_content += f'http://{M3U_HOSTPORT}/proxy/{hash}\n'
     return proxified_content
 
 @app.get("/playlist.m3u")
 def serve_proxified_playlist():
     # Erstelle die M3U-Datei als String
     playlist_content = generate_proxified_m3u()
-    
+
     # Konvertiere den Inhalt in ein BytesIO-Objekt (das wie eine Datei funktioniert)
     playlist_io = io.BytesIO(playlist_content.encode('utf-8'))
 
@@ -95,15 +95,12 @@ def serve_proxified_playlist():
 
 @app.get("/proxy/{hash_id}")
 def proxy_stream(hash_id: str):
-    for mapping in MAPPINGS.values():
-        if mapping["hash"] == hash_id:
-            logger.info(f"Proxying stream for hash: {hash_id} -> {mapping['url']}")
-            
-            # Hole den Stream und leite ihn direkt weiter
-            response = requests.get(mapping["url"], stream=True)
-            # Stelle sicher, dass der Content-Type für TS-Streams korrekt gesetzt ist
-            return StreamingResponse(response.iter_content(chunk_size=1024), media_type='video/mp2t')
-    
+    mapping = MAPPINGS.get(hash_id)
+    if mapping:
+        logger.info(f"Proxying stream for hash: {hash_id} -> {mapping['url']}")
+
+        return RedirectResponse(url=mapping['url'])
+
     logger.warning(f"Stream not found for hash: {hash_id}")
     return {"error": "Stream not found"}
 
