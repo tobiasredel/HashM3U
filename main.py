@@ -7,8 +7,6 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 import io
 from typing import Dict
-import threading
-import time
 import re
 import uvicorn
 
@@ -116,10 +114,6 @@ def schedule_mapping_update():
 def read_root():
     return {"message": "FastAPI Server is running!"}
 
-# FastAPI-Server in einem separaten Thread starten
-def start_fastapi():
-    logger.info("Starting FastAPI server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     # Direktes Update beim Starten
