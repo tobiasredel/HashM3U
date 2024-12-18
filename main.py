@@ -20,6 +20,8 @@ scheduler = BackgroundScheduler()
 
 MAPPINGS: Dict[str, Dict] = {}
 M3U_URL = os.getenv("M3U_SOURCE_URL", "http://example.com/playlist.m3u")
+M3U_HOSTPORT = os.getenv("M3U_HOSTPORT", "localhost:8000")
+M3U_UPDATEHOURS = os.getenv("M3U_UPDATEHOURS", 2)
 
 
 def generate_hash(name: str) -> str:
@@ -75,7 +77,7 @@ def generate_proxified_m3u() -> str:
         
         # Stelle sicher, dass die Anführungszeichen korrekt bleiben und nicht escaped werden
         proxified_content += f'{metadata}\n'
-        proxified_content += f'http://localhost:8000/proxy/{data["hash"]}\n'
+        proxified_content += f'http://{M3U_HOSTPORT}/proxy/{data["hash"]}\n'
     return proxified_content
 
 @app.get("/playlist.m3u")
@@ -106,7 +108,7 @@ def proxy_stream(hash_id: str):
     return {"error": "Stream not found"}
 
 def schedule_mapping_update():
-    scheduler.add_job(update_mapping, "interval", hours=2, args=[M3U_URL])
+    scheduler.add_job(update_mapping, "interval", hours=int(M3U_UPDATEHOURS), args=[M3U_URL])
     scheduler.start()
 
 # FastAPI-Endpunkt (zum Testen)
